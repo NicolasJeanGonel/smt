@@ -21,6 +21,7 @@ from smt.utils.kernels import (
     Matern52,
     Matern32,
     ActExp,
+    Kernel,
 )
 from smt.utils.checks import check_support, ensure_2d_array
 from smt.utils.design_space import (
@@ -231,9 +232,16 @@ class KrgBased(SurrogateModel):
             "matern52",
         ]:
             self.options["pow_exp_power"] = 1.0
-        self.corr = self._correlation_class[self.options["corr"]](
+        #initialize kernel or link model with user defined kernel
+        if isinstance(self.options["corr"], Kernel):
+            self.corr=self.options["corr"]
+            self.options["theta0"]=self.corr.theta
+        elif type(self.options["corr"]) is str and self.options["corr"] in self._correlation_class:
+            self.corr = self._correlation_class[self.options["corr"]](
             self.options["theta0"]
         )
+        else:
+            raise ValueError("The correlation kernel has not been correctly defined.")
         # Check the pow_exp_power is >0 and <=2
         assert (
             self.options["pow_exp_power"] > 0 and self.options["pow_exp_power"] <= 2

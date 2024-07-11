@@ -1,10 +1,22 @@
 import numpy as np
-from abc import ABCMeta  # , abstractmethod
+from abc import ABCMeta, abstractmethod
 
 
 class Kernel(metaclass=ABCMeta):
     def __init__(self, theta):
         self.theta = np.array(theta)
+    def __add__(self,k):
+        return Sum(self,k)
+    def __mul__(self,k):
+        return Product(self,k)
+    def __eq__(self,k):
+        if type(self)==type(k):
+            return(np.all(self.theta,k.theta))
+        else:
+            return False
+        @abstractmethod
+        def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
+            """evaluate the kernel or its derivatives"""
 
 
 class PowExp(Kernel):
@@ -495,3 +507,31 @@ class ActExp(Kernel):
             raise ValueError("Jacobians are not available for this correlation kernel")
 
         return r
+
+
+class Operator(Kernel):
+    def __init__(self, corr1, corr2):
+        self.theta = np.array([corr1.theta, corr2.theta])
+        self.corr1 = corr1
+        self.corr2 = corr2
+
+
+class Sum(Operator):
+    def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
+        return self.corr1(d, grad_ind, hess_ind, derivative_params) + self.corr2(
+            d, grad_ind, hess_ind, derivative_params
+        )
+
+
+class Product(Operator):
+    def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
+        return self.corr1(d, grad_ind, hess_ind, derivative_params) * self.corr2(
+            d, grad_ind, hess_ind, derivative_params
+        )
+
+if __name__=="__main__":
+    k1=PowExp(0)
+    k2=PowExp(1)
+    print(k1+k2)
+    k3=k1+k2
+    print(k3(np.array([[43]])))
