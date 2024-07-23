@@ -11,6 +11,7 @@ import numpy as np
 from smt.sampling_methods import LHS
 from smt.surrogate_models import KRG
 from smt.utils.sm_test_case import SMTestCase
+from smt.utils.kernels import PowExp
 
 
 class Test(SMTestCase):
@@ -36,6 +37,7 @@ class Test(SMTestCase):
         self.yt_squar_sin_exp = pb_for_sin_squar_exp(self.xt)
 
     def test_predictions(self):
+        k=PowExp([1e-2,1e-2])+PowExp([1e-2,1e-2])
         trends = ["constant", "linear"]
         kernels = [
             "pow_exp",
@@ -44,6 +46,7 @@ class Test(SMTestCase):
             "matern32",
             "matern52",
             "squar_sin_exp",
+            k,
         ]
         powers = [1.0, 1.5, 2.0]
 

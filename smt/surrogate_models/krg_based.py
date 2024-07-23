@@ -95,6 +95,7 @@ class KrgBased(SurrogateModel):
                 "matern52",
                 "matern32",
             ),
+            types=(str, Kernel),
             desc="Correlation function type",
         )
         declare(
@@ -2188,19 +2189,19 @@ class KrgBased(SurrogateModel):
             n_comp,
             mat_dim,
         )
+        if type(self.options["corr"]) is str:
+            if self.options["corr"] == "squar_sin_exp":
+                if (
+                    self.is_continuous
+                    or self.options["categorical_kernel"] == MixIntKernelType.GOWER
+                ):
+                    self.options["theta0"] *= np.ones(2 * self.n_param)
+                else:
+                    self.n_param += len([self.design_space.is_cat_mask])
+                    self.options["theta0"] *= np.ones(self.n_param)
 
-        if self.options["corr"] == "squar_sin_exp":
-            if (
-                self.is_continuous
-                or self.options["categorical_kernel"] == MixIntKernelType.GOWER
-            ):
-                self.options["theta0"] *= np.ones(2 * self.n_param)
             else:
-                self.n_param += len([self.design_space.is_cat_mask])
                 self.options["theta0"] *= np.ones(self.n_param)
-
-        else:
-            self.options["theta0"] *= np.ones(self.n_param)
         if (
             self.options["corr"] not in ["squar_exp", "abs_exp", "pow_exp"]
             and not (self.is_continuous)
@@ -2223,7 +2224,13 @@ class KrgBased(SurrogateModel):
             if len(self.options["theta0"]) == 1:
                 self.options["theta0"] *= np.ones(d)
             else:
-                if self.options["corr"] != "squar_sin_exp":
+                
+                if self.options["corr"] in ("pow_exp",
+                "abs_exp",
+                "squar_exp",
+                "act_exp",
+                "matern52",
+                "matern32",):
                     raise ValueError(
                         "the length of theta0 (%s) should be equal to the number of dim (%s)."
                         % (len(self.options["theta0"]), d)

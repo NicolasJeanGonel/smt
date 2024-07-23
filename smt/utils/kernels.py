@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 
 class Kernel(metaclass=ABCMeta):
     def __init__(self, theta):
-        self.theta = np.array(theta)
+        self.theta = np.atleast_1d(theta)
     def __add__(self,k):
         return Sum(self,k)
     def __mul__(self,k):
@@ -511,7 +511,8 @@ class ActExp(Kernel):
 
 class Operator(Kernel):
     def __init__(self, corr1, corr2):
-        self.theta = np.array([corr1.theta, corr2.theta])
+        #print(corr1.theta)
+        self.theta = np.concatenate((corr1.theta, corr2.theta))
         self.corr1 = corr1
         self.corr2 = corr2
 
