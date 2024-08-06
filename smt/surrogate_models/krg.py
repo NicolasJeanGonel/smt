@@ -8,6 +8,7 @@ from smt.surrogate_models.krg_based import KrgBased
 from smt.utils.kriging import componentwise_distance
 from smt.utils.kernels import Kernel
 
+
 class KRG(KrgBased):
     name = "Kriging"
 

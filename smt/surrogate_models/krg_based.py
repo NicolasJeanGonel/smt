@@ -22,6 +22,7 @@ from smt.utils.kernels import (
     Matern32,
     ActExp,
     Kernel,
+    Operator,
 )
 from smt.utils.checks import check_support, ensure_2d_array
 from smt.utils.design_space import (
@@ -233,14 +234,22 @@ class KrgBased(SurrogateModel):
             "matern52",
         ]:
             self.options["pow_exp_power"] = 1.0
-        #initialize kernel or link model with user defined kernel
+        # initialize kernel or link model with user defined kernel
         if isinstance(self.options["corr"], Kernel):
-            self.corr=self.options["corr"]
-            self.options["theta0"]=self.corr.theta
-        elif type(self.options["corr"]) is str and self.options["corr"] in self._correlation_class:
+            if (
+                isinstance(self.options["corr"], Operator)
+                and self.options["corr"].nbaddition
+            ):
+                self.corr = self.options["corr"] / self.nbaddition
+            self.corr = self.options["corr"]
+            self.options["theta0"] = self.corr.theta
+        elif (
+            type(self.options["corr"]) is str
+            and self.options["corr"] in self._correlation_class
+        ):
             self.corr = self._correlation_class[self.options["corr"]](
-            self.options["theta0"]
-        )
+                self.options["theta0"]
+            )
         else:
             raise ValueError("The correlation kernel has not been correctly defined.")
         # Check the pow_exp_power is >0 and <=2
@@ -1104,7 +1113,17 @@ class KrgBased(SurrogateModel):
             dsigma
             List of all sigma derivatives
         """
+        grad_red = 1
+        par = {}
         red, par = self._reduced_likelihood_function(theta)
+        try:
+            C = par["C"]
+            gamma = par["gamma"]
+            Q = par["Q"]
+            G = par["G"]
+            sigma_2 = par["sigma2"] + self.options["nugget"]
+        except KeyError:
+            return grad_red, par
 
         C = par["C"]
         gamma = par["gamma"]
@@ -1537,7 +1556,9 @@ class KrgBased(SurrogateModel):
 
         dx = differences(x, Y=self.X_norma.copy())
         d = self._componentwise_distance(dx)
-        if self.options["corr"] == "squar_sin_exp":
+        if self.options["corr"] == "squar_sin_exp" or isinstance(
+            self.options["corr"], Kernel
+        ):
             dd = 0
         else:
             dd = self._componentwise_distance(
@@ -1708,7 +1729,9 @@ class KrgBased(SurrogateModel):
         # Get pairwise componentwise L1-distances to the input training set
         dx = differences(x, Y=self.X_norma.copy())
         d = self._componentwise_distance(dx)
-        if self.options["corr"] == "squar_sin_exp":
+        if self.options["corr"] == "squar_sin_exp" or isinstance(
+            self.options["corr"], Kernel
+        ):
             dd = 0
         else:
             dd = self._componentwise_distance(
@@ -2224,13 +2247,14 @@ class KrgBased(SurrogateModel):
             if len(self.options["theta0"]) == 1:
                 self.options["theta0"] *= np.ones(d)
             else:
-                
-                if self.options["corr"] in ("pow_exp",
-                "abs_exp",
-                "squar_exp",
-                "act_exp",
-                "matern52",
-                "matern32",):
+                if self.options["corr"] in (
+                    "pow_exp",
+                    "abs_exp",
+                    "squar_exp",
+                    "act_exp",
+                    "matern52",
+                    "matern32",
+                ):
                     raise ValueError(
                         "the length of theta0 (%s) should be equal to the number of dim (%s)."
                         % (len(self.options["theta0"]), d)

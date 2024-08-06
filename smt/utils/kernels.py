@@ -5,15 +5,22 @@ from abc import ABCMeta, abstractmethod
 class Kernel(metaclass=ABCMeta):
     def __init__(self, theta):
         self.theta = np.atleast_1d(theta)
-    def __add__(self,k):
-        return Sum(self,k)
-    def __mul__(self,k):
-        return Product(self,k)
-    def __eq__(self,k):
-        if type(self)==type(k):
-            return(np.all(self.theta,k.theta))
+
+    def __add__(self, k):
+        if not isinstance(k, Kernel):
+            return Sum(self, Constant(k))
+        else:
+            return Sum(self, k)
+
+    def __mul__(self, k):
+        return Product(self, k)
+
+    def __eq__(self, k):
+        if type(self) == type(k):
+            return np.all(self.theta, k.theta)
         else:
             return False
+
         @abstractmethod
         def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
             """evaluate the kernel or its derivatives"""
@@ -505,19 +512,39 @@ class ActExp(Kernel):
 
         if derivative_params is not None:
             raise ValueError("Jacobians are not available for this correlation kernel")
-
+        print(r)
         return r
+
+
+class Constant(Kernel):
+    def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
+        return np.full((d.shape[0], 1), self.theta)
 
 
 class Operator(Kernel):
     def __init__(self, corr1, corr2):
-        #print(corr1.theta)
+        # print(corr1.theta)
+        print((corr1.theta, corr2.theta))
         self.theta = np.concatenate((corr1.theta, corr2.theta))
         self.corr1 = corr1
         self.corr2 = corr2
+        self.nbaddition = 0  # this parameter is only useful for summation to count the number of plus done. It still
+        #has to be defined for every operator in case we do for instance (.+.)*.+.
 
 
 class Sum(Operator):
+    def __init__(self, corr1, corr2):
+        super().__init__(corr1, corr2)
+        if isinstance(corr1, Operator):
+            if isinstance(corr2, Operator):
+                self.nbaddtion = 1 + corr1.nbaddition + corr2.nbaddition
+            else:
+                self.nbaddition = 1 + corr1.nbaddition
+        elif isinstance(corr2, Operator):
+            self.nbaddition = 1 + corr2.nbaddition
+        else:
+            self.nbaddition = 1
+
     def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
         return self.corr1(d, grad_ind, hess_ind, derivative_params) + self.corr2(
             d, grad_ind, hess_ind, derivative_params
@@ -526,13 +553,64 @@ class Sum(Operator):
 
 class Product(Operator):
     def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
-        return self.corr1(d, grad_ind, hess_ind, derivative_params) * self.corr2(
-            d, grad_ind, hess_ind, derivative_params
-        )
+        n_theta1 = self.corr1.theta.shape[0]
+        if grad_ind is not None:
+            if hess_ind is not None:  # calcul de la hessienne du noyau
+                if grad_ind < n_theta1:
+                    if hess_ind < n_theta1:
+                        r= self.corr1(
+                            d, grad_ind, hess_ind, derivative_params
+                        ) * self.corr2(d, None, None, derivative_params)
+                    else:
+                        r= self.corr1(
+                            d, grad_ind, None, derivative_params
+                        ) * self.corr2(d, hess_ind - n_theta1, None, derivative_params)
+                else:
+                    if hess_ind < n_theta1:
+                        r= self.corr1(
+                            d, hess_ind, None, derivative_params
+                        ) * self.corr2(d, grad_ind - n_theta1, None, derivative_params)
+                    else:
+                        r= self.corr1(
+                            d, None, None, derivative_params
+                        ) * self.corr2(
+                            d,
+                            grad_ind - n_theta1,
+                            hess_ind - n_theta1,
+                            derivative_params,
+                        )
+            else:  # calcul du gradient du noyau
+                if grad_ind < n_theta1:
+                    r= self.corr1(
+                        d, grad_ind, None, derivative_params
+                    ) * self.corr2(d, None, None, derivative_params)
+                else:
+                    r= self.corr1(d, None, None, derivative_params) * self.corr2(
+                        d, grad_ind - n_theta1, None, derivative_params
+                    )
+        else:  # calcul du noyau sans dérivées
+            r= self.corr1(d, grad_ind, hess_ind, derivative_params) * self.corr2(
+                d, grad_ind, hess_ind, derivative_params
+            )
+        if derivative_params is not None:#calcul des dérivées spatiales
+            dx=derivative_params["dx"]
+            return self.corr1(d, grad_ind, hess_ind, derivative_params) * self.corr2(
+                d, grad_ind, hess_ind, None
+            )+self.corr1(d, grad_ind, hess_ind, None) * self.corr2(
+                d, grad_ind, hess_ind, derivative_params
+            )
+        return r
+        
+ 
 
-if __name__=="__main__":
-    k1=PowExp(0)
-    k2=PowExp(1)
-    print(k1+k2)
-    k3=k1+k2
-    print(k3(np.array([[43]])))
+if __name__ == "__main__":
+    k1 = PowExp(0.1)
+    print(k1(np.array([[43], [42]])))
+    k2 = PowExp(0.1)
+    print(k2(np.array([[43], [42]])))
+    k3 = k1 + k2
+    print(k3(np.array([[43], [42]])))
+    k4 = k2 + 0.1
+    print(k4(np.array([[43], [42]])))
+    k5 = k1 * k2
+    print("k5=", k5(np.array([[43], [42]]), 1))
