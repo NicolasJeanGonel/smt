@@ -21,9 +21,9 @@ class Kernel(metaclass=ABCMeta):
         else:
             return False
 
-        @abstractmethod
-        def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
-            """evaluate the kernel or its derivatives"""
+    @abstractmethod
+    def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
+        """evaluate the kernel or its derivatives"""
 
 
 class PowExp(Kernel):

@@ -232,7 +232,7 @@ class KrgBased(SurrogateModel):
             "squar_sin_exp",
             "matern32",
             "matern52",
-        ]:
+        ] or isinstance(self.options["corr"], Kernel):
             self.options["pow_exp_power"] = 1.0
         # initialize kernel or link model with user defined kernel
         if isinstance(self.options["corr"], Kernel):

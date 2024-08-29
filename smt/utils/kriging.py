@@ -700,7 +700,6 @@ def componentwise_distance(
         if corr == "act_exp":
             raise ValueError("this option is not implemented for active learning")
         der = _comp_dist_derivative(D, power)
-        print("theta=", theta.T, "der=", der)
         D_corr = power * np.einsum("j,ij->ij", theta.T, der)
         return D_corr
 
