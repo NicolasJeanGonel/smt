@@ -23,6 +23,7 @@ from smt.utils.kernels import (
     ActExp,
     Kernel,
     Operator,
+    _Constant,
 )
 from smt.utils.checks import check_support, ensure_2d_array
 from smt.utils.design_space import (
@@ -236,12 +237,13 @@ class KrgBased(SurrogateModel):
             self.options["pow_exp_power"] = 1.0
         # initialize kernel or link model with user defined kernel
         if isinstance(self.options["corr"], Kernel):
-            if (
-                isinstance(self.options["corr"], Operator)
-                and self.options["corr"].nbaddition
-            ):
-                self.corr = self.options["corr"] / self.nbaddition
-            self.corr = self.options["corr"]
+            if isinstance(self.options["corr"],Operator):
+                print("nbaddition=",self.options["corr"].nbaddition)
+                k_test=_Constant(1/(self.options["corr"].nbaddition+1))
+                print(k_test.param)
+                self.corr = self.options["corr"] * _Constant(1/(self.options["corr"].nbaddition+1))
+            else:
+                self.corr = self.options["corr"]
             self.options["theta0"] = self.corr.theta
         elif (
             type(self.options["corr"]) is str
@@ -1518,6 +1520,9 @@ class KrgBased(SurrogateModel):
 
         else:
             _, _, n_eval, _, _, dx = self._predict_init(x, is_acting)
+            import os
+            print(os.getcwd())
+            np.save("dx",dx)
             X_cont = np.copy(x)
             d = self._componentwise_distance(dx)
             # Compute the correlation function
@@ -2042,7 +2047,7 @@ class KrgBased(SurrogateModel):
                                 constraints=[
                                     {"fun": con, "type": "ineq"} for con in constraints
                                 ],
-                                method="COBYLA",
+                                method="SLSQP",
                                 options={
                                     "rhobeg": _rhobeg,
                                     "tol": 1e-4,

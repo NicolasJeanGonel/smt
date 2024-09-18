@@ -530,6 +530,10 @@ class ActExp(Kernel):
         print(r)
         return r
 
+class Constant(Kernel):
+    def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
+        return np.full((d.shape[0], 1), self.theta)
+
 class _Constant(Kernel):
     '''dummy kernel used to normalize the kernel when the Sum operator is used'''
     def __init__(self, param):
@@ -538,11 +542,6 @@ class _Constant(Kernel):
 
     def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
         return np.full((d.shape[0], 1), self.param)
-
-class Constant(Kernel):
-    def __call__(self, d, grad_ind=None, hess_ind=None, derivative_params=None):
-        return np.full((d.shape[0], 1), self.theta)
-
 
 class Operator(Kernel):
     def __init__(self, corr1, corr2):
