@@ -2047,7 +2047,7 @@ class KrgBased(SurrogateModel):
                                 constraints=[
                                     {"fun": con, "type": "ineq"} for con in constraints
                                 ],
-                                method="SLSQP",
+                                method="COBYLA",
                                 options={
                                     "rhobeg": _rhobeg,
                                     "tol": 1e-4,
